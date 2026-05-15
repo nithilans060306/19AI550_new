@@ -1,150 +1,85 @@
-# Ex.No: 8  Implementation of Path finding using A* algorithm
-### DATE:                                                                            
-### REGISTER NUMBER : 
+# Ex.No: 7  Implementation of Simple Pathfinding with Obstacles
+### DATE: 15.05.2026                                                                        
+### REGISTER NUMBER : 212223240108
 ### AIM: 
-To write a program to create graph using waypoints and use A* algorithm to find path between source and destination.
+To write a program to pathfinding using AI navigation 
 ### Algorithm:
 ```
 1. Create a New Unity Project by Open the  Unity Hub and create a new 3D Project,Name the project (e.g., Pathfinding).
-2. Create Waypoints in Scene => Create empty or sphere GameObjects ( minimum 4)  and  name it as Waypoint1, Waypoint2, ..., Waypoint4
-   Position them freely in the scene (not on a grid)
-3. Write a waypoint script to draw the lines between neighbors.
-4.Attach waypoint.cs script to each waypoint GameObject and Manually assign neighbors in the Inspector to form a graph.
-5. Create a empty game object and name it as WaypointManager - to manage all waypoints
-6. Attach Waypoint script to it
-7.Write a Pathfinding algorithm using A*search
-8. Create a Game Object for Player ( choose capsule or any others) and attach the script to move player from start to end waypoints
+2. Set Up the Scene by Create the Ground (Plane or Terrain)
+  Go to: GameObject → 3D Object → Plane and Rename: "Ground"  Scale it: (10, 1, 10) (or adjust as needed)
+3. Add Obstacles (Cubes or Walls)
+  Go to: GameObject → 3D Object → Cube  Scale it: (3, 3, 1) (for a wall-like structure)
+  Position it: Place it anywhere to block AI movement Rename it: "Obstacle"  Duplicate: Ctrl + D to create multiple obstacles ,tag the obstacke with same name.
+4.Bake the NavMesh
+Go to: Window → AI → Navigation , Select Ground: Click on your Ground object ,
+In Navigation Window: Check ✅ "Navigation Static"  or Add component Navigation surface and Bake
+5.Create the AI Character and Attach navMesh Agent
+Go to: GameObject → 3D Object → Capsule ,  Rename: "AICharacter" , Scale: (1, 2, 1)
+Go to: Inspector → Add Component → NavMeshAgent Adjust Settings: Speed: 3.5 Stopping Distance: 1  Obstacle Avoidance: High
+6.Create the Script "AIPathFinder" (Go to: Assets → Right Click → Create → C# Script and  Rename it: "AIPathfinder"
+7.Attach the Script"AIPathFinder" code by Drag & Drop the AIPathfinder.cs onto the AICharacter 
+8.Assign the Target:Create a Target: GameObject → 3D Object → Sphere, Rename it: "Target",
+ In AICharacter Inspector → AIPathfinder → Drag the Target Sphere into the "target" field.
+9.Add NavMeshObstacle
+Select an Obstacle (Cube)
+Go to: Inspector → Add Component → NavMeshObstacle and Check: ✅ "Carve"
+10.Move the Obstacle with Code ( attach it with Obstacle) 
+11. Run the program
 ```  
 ### Program:
 ```
-**#1.Waypoint.cs**
-using UnityEngine;
-using System.Collections.Generic;
-
-public class Waypoint : MonoBehaviour {
-    public List<Waypoint> neighbors = new List<Waypoint>();
-
-    // Optional: Draw connections in the editor
-    private void OnDrawGizmos() {
-        Gizmos.color = Color.yellow;
-        foreach (var neighbor in neighbors) {
-            if (neighbor != null) {
-                Gizmos.DrawLine(transform.position, neighbor.transform.position);
-            }
-        }
-    }
-}
-**#2. WaypointGraph.cs**
-using UnityEngine;
-
-public class WaypointGraph : MonoBehaviour {
-    public Waypoint[] allWaypoints;
-
-    void Awake() {
-        allWaypoints = FindObjectsOfType<Waypoint>();
-    }
-}
-**#3.Pathfinding.cs**
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-public class Pathfinding : MonoBehaviour {
-    public static List<Waypoint> FindPath(Waypoint start, Waypoint goal) {
-        var openSet = new List<Waypoint>();
-        var cameFrom = new Dictionary<Waypoint, Waypoint>();
-        var gScore = new Dictionary<Waypoint, float>();
-        var fScore = new Dictionary<Waypoint, float>();
+using UnityEngine.AI;
+using static UnityEngine.GraphicsBuffer;
 
-        foreach (var wp in FindObjectsOfType<Waypoint>()) {
-            gScore[wp] = float.PositiveInfinity;
-            fScore[wp] = float.PositiveInfinity;
-        }
-
-        gScore[start] = 0f;
-        fScore[start] = Vector3.Distance(start.transform.position, goal.transform.position);
-        openSet.Add(start);
-
-        while (openSet.Count > 0) {
-            Waypoint current = openSet[0];
-            foreach (var wp in openSet) {
-                if (fScore[wp] < fScore[current]) {
-                    current = wp;
-                }
-            }
-
-            if (current == goal) {
-                return ReconstructPath(cameFrom, current);
-            }
-
-            openSet.Remove(current);
-
-            foreach (var neighbor in current.neighbors) {
-                float tentativeG = gScore[current] + Vector3.Distance(current.transform.position, neighbor.transform.position);
-                if (tentativeG < gScore[neighbor]) {
-                    cameFrom[neighbor] = current;
-                    gScore[neighbor] = tentativeG;
-                    fScore[neighbor] = tentativeG + Vector3.Distance(neighbor.transform.position, goal.transform.position);
-
-                    if (!openSet.Contains(neighbor)) {
-                        openSet.Add(neighbor);
-                    }
-                }
-            }
-        }
-
-        return null; // No path found
+public class AIPathfinder : MonoBehaviour
+{
+    // Start is called before the first frame update
+    public Transform target; // Assign the target in the Inspector
+    private NavMeshAgent agent;
+    void Start()
+    {
+        agent = GetComponent<NavMeshAgent>(); // Get the NavMeshAgent
     }
 
-    private static List<Waypoint> ReconstructPath(Dictionary<Waypoint, Waypoint> cameFrom, Waypoint current) {
-        var path = new List<Waypoint> { current };
-        while (cameFrom.ContainsKey(current)) {
-            current = cameFrom[current];
-            path.Insert(0, current);
-        }
-        return path;
+    // Update is called once per frame
+    void Update()
+    {
+        agent.SetDestination(target.position);
     }
 }
-
-**#4.AICharacter.cs**
-using UnityEngine;
+#Moving Obstacle
+using System.Collections;
 using System.Collections.Generic;
+using UnityEngine;
 
-public class AICharacter : MonoBehaviour {
-    public Waypoint startWaypoint;
-    public Waypoint goalWaypoint;
-    public float speed = 3f;
-
-    private List<Waypoint> path;
-    private int currentIndex = 0;
-
-    void Start() {
-        path = Pathfinding.FindPath(startWaypoint, goalWaypoint);
+public class Moving : MonoBehaviour
+{
+    // Start is called before the first frame update
+    public float moveDistance = 3f;
+    public float moveSpeed = 2f;
+    private Vector3 startPos;
+void Start()
+    {
+    startPos = transform.position;
     }
 
-    void Update() {
-        if (path == null || currentIndex >= path.Count) return;
-
-        Vector3 target = path[currentIndex].transform.position;
-        transform.position = Vector3.MoveTowards(transform.position, target, speed * Time.deltaTime);
-
-        if (Vector3.Distance(transform.position, target) < 0.1f) {
-            currentIndex++;
-        }
+    // Update is called once per frame
+    void Update()
+    {
+       float movement=Random.Range(-moveDistance / 14, moveDistance / 14);
+        transform.position = startPos + new Vector3(movement, 0, 0);
     }
 }
-Check the following
-1. Waypoints placed in scene
-2. Neighbors set manually via Inspector
-3. WaypointGraph script on a manager
-4. AICharacter assigned a start and goal
+```
+For smooth movement(optional)  -> use  
+float movement = Mathf.PingPong(Time.time * moveSpeed, moveDistance) - moveDistance / 2;
+transform.position = startPos + new Vector3(movement, 0, 0);
 ### Output:
-
-
-
-
-
-
-
-
+<img width="1918" height="1017" alt="image" src="https://github.com/user-attachments/assets/073fc47a-cf28-4304-9cbc-39cc10f860c1" />
 
 ### Result:
-Thus the pathfinding algorithm was sucessfully implemented.
+Thus the simple path finding  behavior was implemented using AI navigation successfully.
